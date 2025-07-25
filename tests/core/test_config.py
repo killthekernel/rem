@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 from ml_collections import ConfigDict
-from torch import diff
 
 from rem.core.config import (
     diff_configs,
