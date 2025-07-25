@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: rem
+Version: 0.1.0
+Summary: Research-grade experiment manager
+Author-email: Ravin Raj <ravinraj@princeton.edu>
+License: MIT
+Project-URL: Homepage, https://github.com/killthekernel/rem
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: mypy; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: isort; extra == "dev"
+Requires-Dist: pre-commit; extra == "dev"
