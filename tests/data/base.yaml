@@ -1,0 +1,5 @@
+training:
+  lr: 0.01
+  epochs: 10
+model:
+  type: mlp
