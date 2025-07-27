@@ -26,7 +26,7 @@ def get_logger(
     logger = logging.getLogger(name)
     level = _resolve_level(level)
     logger.setLevel(level)
-    logger.propagate = False
+    logger.propagate = True
 
     if not logger.handlers:
         console_handler = logging.StreamHandler(sys.stdout)
