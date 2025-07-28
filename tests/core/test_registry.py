@@ -3,12 +3,8 @@ from typing import Any, Optional
 
 import pytest
 
-from rem.core.registry import (
-    TERMINAL_STATUSES,
-    VALID_EVENT_TYPES,
-    VALID_STATUSES,
-    RegistryManager,
-)
+from rem.core.registry import VALID_EVENT_TYPES, RegistryManager
+from rem.core.status import TERMINAL_STATUSES, VALID_STATUSES
 
 
 def make_event(

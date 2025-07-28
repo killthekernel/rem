@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Optional, cast
 
+from rem.core.status import VALID_STATUSES, is_terminal
 from rem.utils.logger import get_logger
 from rem.utils.paths import DEFAULT_EVENTS_PATH
 
@@ -21,31 +22,6 @@ VALID_EVENT_TYPES: set[EventType] = {
     "SUBMIT_SWEEP",
     "UPDATE_STATUS",
 }
-
-VALID_STATUSES: set[str] = {
-    "PENDING",
-    "STAGED",
-    "RUNNING",
-    "COMPLETED",
-    "FAILED",
-    "KILLED",
-    "TIMEOUT",
-    "CRASHED",
-    "SKIPPED",
-}
-
-TERMINAL_STATUSES: set[str] = {
-    "COMPLETED",
-    "FAILED",
-    "KILLED",
-    "TIMEOUT",
-    "CRASHED",
-    "SKIPPED",
-}
-
-
-def is_terminal(status: str) -> bool:
-    return status in TERMINAL_STATUSES
 
 
 class RegistryManager:
