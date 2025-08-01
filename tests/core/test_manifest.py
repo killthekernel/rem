@@ -21,7 +21,7 @@ from rem.core.manifest import (
 
 
 def test_rep_manifest_save_load(tmp_path: Path) -> None:
-    path = tmp_path / "rep.json"
+    path = tmp_path.joinpath("rep.json")
     rep = RepManifest(rep_id="R_000", sweep_id="S_0001", group_id="G_001")
     rep.save(path)
     loaded = RepManifest.load(path)
@@ -31,8 +31,8 @@ def test_rep_manifest_save_load(tmp_path: Path) -> None:
 
 
 def test_update_rep_manifest_status(tmp_path: Path) -> None:
-    path = tmp_path / "rep.json"
-    rep = RepManifest(rep_id="R_001", sweep_id="S_0001", group_id="G_001")
+    path = tmp_path.joinpath("rep.json")
+    rep = RepManifest(rep_id="R_0001", sweep_id="S_0001", group_id="G_0001")
     rep.save(path)
     update_rep_manifest(path, {"status": "COMPLETED"})
     updated = RepManifest.load(path)
@@ -41,8 +41,8 @@ def test_update_rep_manifest_status(tmp_path: Path) -> None:
 
 
 def test_invalid_rep_status_raises(tmp_path: Path) -> None:
-    path = tmp_path / "rep.json"
-    rep = RepManifest(rep_id="R_002", sweep_id="S_0001", group_id="G_001")
+    path = tmp_path.joinpath("rep.json")
+    rep = RepManifest(rep_id="R_0002", sweep_id="S_0001", group_id="G_0001")
     rep.save(path)
     with pytest.raises(ValueError):
         update_rep_manifest(path, {"status": "INVALID"})
@@ -50,36 +50,44 @@ def test_invalid_rep_status_raises(tmp_path: Path) -> None:
 
 def test_summarize_sweep_status() -> None:
     reps = [
-        {"rep_id": "R_1", "status": "COMPLETED"},
-        {"rep_id": "R_2", "status": "COMPLETED"},
+        {"rep_id": "R_0001", "status": "COMPLETED"},
+        {"rep_id": "R_0002", "status": "COMPLETED"},
     ]
     assert summarize_sweep_status(reps) == "COMPLETED"
 
     reps = [
-        {"rep_id": "R_1", "status": "FAILED"},
-        {"rep_id": "R_2", "status": "TIMEOUT"},
+        {"rep_id": "R_0001", "status": "FAILED"},
+        {"rep_id": "R_0002", "status": "TIMEOUT"},
     ]
     assert summarize_sweep_status(reps) == "PARTIAL_COMPLETION"
 
     reps = [
-        {"rep_id": "R_1", "status": "PENDING"},
-        {"rep_id": "R_2", "status": "PENDING"},
+        {"rep_id": "R_0001", "status": "PENDING"},
+        {"rep_id": "R_0002", "status": "PENDING"},
     ]
     assert summarize_sweep_status(reps) == "PENDING"
 
     reps = [
-        {"rep_id": "R_1", "status": "PENDING"},
-        {"rep_id": "R_2", "status": "RUNNING"},
+        {"rep_id": "R_0001", "status": "PENDING"},
+        {"rep_id": "R_0002", "status": "RUNNING"},
     ]
     assert summarize_sweep_status(reps) == "IN_PROGRESS"
 
 
 def test_summarize_group_status() -> None:
     sweep1 = SweepManifest(
-        sweep_id="S1", parameter_combination={}, num_reps=1, reps=[], status="COMPLETED"
+        sweep_id="S_0001",
+        parameter_combination={},
+        num_reps=1,
+        reps=[],
+        status="COMPLETED",
     )
     sweep2 = SweepManifest(
-        sweep_id="S2", parameter_combination={}, num_reps=1, reps=[], status="COMPLETED"
+        sweep_id="S_0002",
+        parameter_combination={},
+        num_reps=1,
+        reps=[],
+        status="COMPLETED",
     )
     assert summarize_group_status([sweep1, sweep2]) == "COMPLETED"
 
@@ -99,29 +107,29 @@ def test_summarize_group_status() -> None:
 def test_group_patch_summary() -> None:
     reps = [
         RepManifest(
-            rep_id="R_1",
-            sweep_id="S_1",
-            group_id="G_1",
+            rep_id="R_0001",
+            sweep_id="S_0001",
+            group_id="G_0001",
             patch_id="p1",
-            replaces="R_0",
+            replaces="R_0000",
             timestamp_end="2025-01-01T00:00:00Z",
         ),
         RepManifest(
-            rep_id="R_2",
-            sweep_id="S_1",
-            group_id="G_1",
+            rep_id="R_0002",
+            sweep_id="S_0001",
+            group_id="G_0001",
             patch_id="p1",
-            replaces="R_1",
+            replaces="R_0001",
             timestamp_end="2025-01-01T00:00:01Z",
         ),
-        RepManifest(rep_id="R_3", sweep_id="S_1", group_id="G_1"),
+        RepManifest(rep_id="R_0003", sweep_id="S_0001", group_id="G_0001"),
     ]
     patches = summarize_group_patches(reps)
     assert any(p["patch_id"] == "p1" and len(p["replaces"]) == 2 for p in patches)
 
 
 def test_group_manifest_init_and_update(tmp_path: Path) -> None:
-    path = tmp_path / "group.json"
+    path = tmp_path.joinpath("group.json")
     group = GroupManifest(
         stamp="20250730_XXXX",
         group_id="G_123",
@@ -140,14 +148,14 @@ def test_group_manifest_init_and_update(tmp_path: Path) -> None:
 
 
 def test_sweep_manifest_init_and_update(tmp_path: Path) -> None:
-    path = tmp_path / "sweep.json"
+    path = tmp_path.joinpath("sweep.json")
     sweep = SweepManifest(
         sweep_id="S_001",
         parameter_combination={"lr": 0.01},
         num_reps=2,
         reps=[
-            {"rep_id": "R_1", "status": "PENDING"},
-            {"rep_id": "R_2", "status": "PENDING"},
+            {"rep_id": "R_0001", "status": "PENDING"},
+            {"rep_id": "R_0002", "status": "PENDING"},
         ],
     )
     init_sweep_manifest(path, sweep)
@@ -159,9 +167,9 @@ def test_sweep_manifest_init_and_update(tmp_path: Path) -> None:
 
 
 def test_rep_manifest_init(tmp_path: Path) -> None:
-    path = tmp_path / "rep_init.json"
-    rep = RepManifest(rep_id="R_123", sweep_id="S_456", group_id="G_789")
+    path = tmp_path.joinpath("rep_init.json")
+    rep = RepManifest(rep_id="R_0001", sweep_id="S_0001", group_id="G_0001")
     init_rep_manifest(path, rep)
     loaded = RepManifest.load(path)
-    assert loaded.rep_id == "R_123"
+    assert loaded.rep_id == "R_0001"
     assert loaded.timestamp_created is not None
