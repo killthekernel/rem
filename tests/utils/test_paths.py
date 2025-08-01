@@ -12,15 +12,12 @@ from rem.utils.ulid import new_ulid
 def test_rem_root_default(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.delenv("REM_ROOT", raising=False)
 
-    assert paths.REM_ROOT == Path.cwd().resolve()
+    assert paths.get_rem_root() == Path.cwd().resolve()
 
 
 def test_rem_root_env_override(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("REM_ROOT", str(tmp_path))
-    # Reload the module to re-evaluate REM_ROOT
-    importlib.reload(paths)
-
-    assert paths.REM_ROOT == tmp_path.resolve()
+    assert paths.get_rem_root() == tmp_path.resolve()
 
 
 def test_path_construction(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:

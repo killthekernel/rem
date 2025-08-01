@@ -52,6 +52,9 @@ pythonpath = ["src"]
 testpaths = [
     "tests",
 ]
+filterwarnings = [
+  "ignore::DeprecationWarning:ulid.ulid"
+]
 
 [tool.coverage.run]
 branch = true

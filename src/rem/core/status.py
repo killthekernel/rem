@@ -1,6 +1,6 @@
 VALID_STATUSES: set[str] = {
     "PENDING",
-    "STAGED",
+    "PARTIAL_COMPLETION",
     "RUNNING",
     "COMPLETED",
     "FAILED",

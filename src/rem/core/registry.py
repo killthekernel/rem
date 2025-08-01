@@ -5,7 +5,7 @@ from typing import Any, Literal, Optional, cast
 
 from rem.core.status import VALID_STATUSES, is_terminal
 from rem.utils.logger import get_logger
-from rem.utils.paths import DEFAULT_EVENTS_PATH
+from rem.utils.paths import get_default_events_path, get_results_dir
 
 logger = get_logger(__name__)
 
@@ -25,7 +25,7 @@ VALID_EVENT_TYPES: set[EventType] = {
 
 
 class RegistryManager:
-    def __init__(self, events_path: Path = DEFAULT_EVENTS_PATH) -> None:
+    def __init__(self, events_path: Path = get_default_events_path()) -> None:
         self.events_path = events_path
         self.events_path.parent.mkdir(parents=True, exist_ok=True)
         self._events: Optional[list[dict[str, Any]]] = None

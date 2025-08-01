@@ -67,9 +67,7 @@ class SweepManifest(BaseManifest):
     sweep_id: str
     parameter_combination: dict[str, Any]
     num_reps: int
-    reps: list[
-        dict[str, Any]
-    ]  # Contains minimal rep info: rep_id, status, version, etc.
+    reps: list[dict[str, Any]]
     status: str = "PENDING"
     timestamp_created: str = field(default_factory=utc_now_iso)
     timestamp_updated: Optional[str] = None
@@ -81,7 +79,7 @@ class GroupManifest(BaseManifest):
     group_id: str
     experiment_class: str
     experiment_path: Union[str, Path]
-    sweep: dict[str, Any]  # Contains sweep mode, vars, reps, etc.
+    sweep: dict[str, Any]
     slurm: dict[str, Any]
     timestamp_created: str = field(default_factory=utc_now_iso)
     timestamp_updated: Optional[str] = None
@@ -132,6 +130,17 @@ def update_group_manifest(path: Path, updates: dict[str, Any]) -> None:
         setattr(group, k, v)
     group.save(path)
     logger.info(f"Updated group manifest at {path} with {updates}")
+
+
+def save_manifest(path: Path, manifest: BaseManifest) -> None:
+    manifest.save(path)
+    logger.info(f"Manifest saved to {path}")
+
+
+def load_manifest(path: Path, manifest_type: Type[ManifestType]) -> ManifestType:
+    manifest = manifest_type.load(path)
+    logger.info(f"Manifest loaded from {path}")
+    return manifest
 
 
 def summarize_sweep_status(rep_entries: list[dict[str, Any]]) -> str:

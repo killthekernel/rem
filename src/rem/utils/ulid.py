@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import cast
 
 import ulid
@@ -37,7 +37,9 @@ def timestamp_from_ulid(u: str) -> datetime:
     Returns:
         datetime: The datetime encoded in the ULID.
     """
-    return cast(datetime, ulid.api.parse(u).timestamp().datetime)
+    return cast(
+        datetime, ulid.api.parse(u).timestamp().datetime.replace(tzinfo=timezone.utc)
+    )
 
 
 def is_valid_ulid(u: str) -> bool:

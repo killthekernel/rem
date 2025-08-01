@@ -9,9 +9,10 @@ SUBCONFIG_FILENAME = "subconfig.yaml"
 
 # Directory naming
 SWEEP_PAD = 4  # S_0001
-REP_PAD = 4  # R_0002
+REP_PAD = 3  # R_002
 
 # Naming prefixes
+GROUP_PREFIX = "G_"
 SWEEP_PREFIX = "S_"
 REP_PREFIX = "R_"
 
