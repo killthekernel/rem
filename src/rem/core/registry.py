@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional, cast
 
 from rem.core.status import VALID_STATUSES, is_terminal
+from rem.utils.lock import FileLock
 from rem.utils.logger import get_logger
 from rem.utils.paths import get_default_events_path, get_results_dir
 
@@ -35,8 +36,9 @@ class RegistryManager:
         Append a validated event to the events.jsonl file.
         """
         self._validate_event(event)
-        with self.events_path.open("a") as f:
-            f.write(json.dumps(event) + "\n")
+        with FileLock(self.events_path):
+            with self.events_path.open("a") as f:
+                f.write(json.dumps(event) + "\n")
         logger.info(
             f"Appended event: {event['type']} for group {event.get('group_id', '?')}"
         )

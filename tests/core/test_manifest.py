@@ -1,4 +1,6 @@
+import json
 import os
+import threading
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -155,3 +157,49 @@ def test_group_patch_summary() -> None:
     assert patches[0]["patch_id"] == "patch_001"
     assert "R_001__v1" in patches[0]["replaces"]
     assert "R_002__v1" in patches[0]["replaces"]
+
+
+def test_manifest_atomic_write_and_cleanup(tmp_path: Path) -> None:
+    path = tmp_path.joinpath("manifest.json")
+    manifest = RepManifest(
+        rep_id=format_rep_id(1),
+        sweep_id=format_sweep_id(1),
+        group_id="G_ABC",
+        parameters={"lr": 0.01},
+        system_info={"host": "test"},
+    )
+
+    manifest.save(path)
+    assert path.exists()
+
+    data = json.loads(path.read_text())
+    assert data["rep_id"] == format_rep_id(1)
+    assert data["sweep_id"] == format_sweep_id(1)
+    assert data["group_id"].startswith("G_")
+
+    # Check cleanup is successful
+    tmp_files = list(p for p in path.parent.iterdir() if p.name.endswith(".tmp"))
+    assert not tmp_files
+
+
+def test_manifest_concurrent_saves(tmp_path: Path) -> None:
+    path = tmp_path.joinpath("manifest.json")
+    m1 = RepManifest(
+        rep_id=format_rep_id(1), sweep_id=format_sweep_id(1), group_id="G_ABC"
+    )
+    m2 = RepManifest(
+        rep_id=format_rep_id(2), sweep_id=format_sweep_id(1), group_id="G_ABC"
+    )
+
+    t1 = threading.Thread(target=lambda: m1.save(path))
+    t2 = threading.Thread(target=lambda: m2.save(path))
+
+    t1.start()
+    t2.start()
+
+    t1.join()
+    t2.join()
+
+    assert path.exists()
+    data = json.loads(path.read_text())
+    assert data["rep_id"] in (format_rep_id(1), format_rep_id(2))

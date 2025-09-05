@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Optional, Type, TypeVar, Union, cast
 
 from rem.core.status import TERMINAL_STATUSES, VALID_STATUSES
+from rem.utils.lock import FileLock
 from rem.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -24,12 +25,13 @@ class BaseManifest:
         if hasattr(self, "timestamp_updated"):
             setattr(self, "timestamp_updated", utc_now_iso())
         path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            "w", delete=False, dir=path.parent, suffix=".tmp"
-        ) as tmp:
-            json.dump(asdict(cast(Any, self)), tmp, indent=2)
-            tmp_path = Path(tmp.name)
-        tmp_path.replace(path)
+        with FileLock(path):
+            with tempfile.NamedTemporaryFile(
+                "w", delete=False, dir=path.parent, suffix=".tmp"
+            ) as tmp:
+                json.dump(asdict(cast(Any, self)), tmp, indent=2)
+                tmp_path = Path(tmp.name)
+            tmp_path.replace(path)
         logger.info(f"Saved manifest to {path}")
 
     @classmethod

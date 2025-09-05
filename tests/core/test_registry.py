@@ -1,3 +1,6 @@
+import json
+import threading
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -110,3 +113,30 @@ class TestRegistryManager:
         event = {"type": event_type, "timestamp": "2025-07-25T12:00:00Z"}
         with pytest.raises(ValueError, match="must include 'group_id'"):
             registry.append_event(event)
+
+    def test_concurrent_appends_are_serialized(self, tmp_path: Path) -> None:
+        events_path = tmp_path.joinpath("events.jsonl")
+        rm = RegistryManager(events_path=events_path)
+
+        num_threads = 5
+
+        def writer(i: int) -> None:
+            event = {
+                "type": "CREATE_GROUP",
+                "group_id": f"G_{i:04d}",
+                "timestamp": time.time(),
+            }
+            rm.append_event(event)
+
+        threads = [
+            threading.Thread(target=writer, args=(i,)) for i in range(num_threads)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        lines = events_path.read_text().splitlines()
+        assert len(lines) == num_threads
+        parsed = [json.loads(line) for line in lines]
+        assert all("type" in e and "group_id" in e and "timestamp" in e for e in parsed)
