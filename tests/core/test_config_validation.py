@@ -30,11 +30,17 @@ def test_unknown_top_level_key_logs_warning(caplog: LogCaptureFixture) -> None:
 
 
 def test_invalid_sweep_key_raises() -> None:
-    cfg = make_base_config(lr=0.01)
-    cfg["sweep"] = ["missing_key"]
-    with pytest.raises(
-        ValueError, match="Sweep key 'missing_key' not found in params."
-    ):
+    cfg = make_base_config(lr=0.01, batch_size=32, dropout=0.1)
+
+    cfg["sweep"] = {
+        "grid": [
+            {"lr": [0.01, 0.001]},  # leaf ok
+            {"zip": {"batch_size": [32, 64], "dropout": [0.1, 0.2]}},  # zip ok
+            {"missing_key": [1, 2]},  # leaf ok but missing in params
+        ]
+    }
+
+    with pytest.raises(ValueError, match=f"Sweep references undefined params"):
         cv.check_sweep_keys(cfg)
 
 
@@ -57,9 +63,75 @@ def test_valid_config_passes_all_checks() -> None:
         {
             "experiment_name": "valid_exp",
             "test": True,
-            "sweep": ["lr", "batch_size"],
-            "params": {"lr": 0.01, "batch_size": 32, "model": "resnet"},
+            "sweep": [
+                {"lr": [0.01, 0.001]},
+                {"zip": {"batch_size": [32, 64], "dropout": [0.1, 0.2]}},
+            ],
+            "params": {
+                "lr": 0.01,
+                "batch_size": 32,
+                "dropout": 0.1,
+                "model": "resnet",
+            },
         }
     )
     # Should not raise
     cv.validate_config(cfg)
+
+
+def test_zip_mismatched_lengths_raises() -> None:
+    cfg = make_base_config(a=1, b=2)
+    cfg["sweep"] = {"zip": {"a": [1, 2], "b": [10]}}  # unequal lengths
+    with pytest.raises(ValueError, match=f"equal lengths"):
+        cv.check_sweep_keys(cfg)
+
+
+def test_leaf_value_not_sequence_raises() -> None:
+    cfg = make_base_config(lr=0.01)
+    cfg["sweep"] = {"lr": 0.1}  # not a list/tuple
+    with pytest.raises(
+        ValueError, match=f"Expected sweep.lr to be a list or tuple of values"
+    ):
+        cv.check_sweep_keys(cfg)
+
+
+def test_top_level_list_sweep_valid() -> None:
+    cfg = ConfigDict(
+        {
+            "experiment_name": "ok",
+            "sweep": [
+                {"lr": [0.1, 0.01]},
+                {"zip": {"bs": [16, 32], "drop": [0.1, 0.2]}},
+            ],
+            "params": {"lr": 0.1, "bs": 16, "drop": 0.1},
+        }
+    )
+    cv.validate_config(cfg)  # no error
+
+
+@pytest.mark.parametrize("sweep_value", [None, False, []])  # type: ignore[misc]
+def test_empty_or_none_or_false_sweep_is_noop(sweep_value: Any) -> None:
+    cfg = ConfigDict(
+        {
+            "experiment_name": "noop",
+            "sweep": sweep_value,
+            "params": {"x": 1},
+        }
+    )
+    cv.validate_config(cfg)  # no error
+
+
+def test_nested_grid_zip_valid() -> None:
+    cfg = ConfigDict(
+        {
+            "experiment_name": "nested_ok",
+            "sweep": {
+                "grid": [
+                    {"zip": {"a": [1, 2], "b": [3, 4]}},
+                    {"grid": [{"c": [7, 8]}, {"d": [9, 10]}]},
+                ]
+            },
+            "params": {"a": 1, "b": 3, "c": 7, "d": 9},
+        }
+    )
+    cv.validate_config(cfg)  # no error

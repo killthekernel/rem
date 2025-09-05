@@ -1,3 +1,4 @@
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from ml_collections import ConfigDict
@@ -27,20 +28,101 @@ def validate_config_structure(cfg: ConfigDict) -> None:
             logger.warning(f"Unknown top-level config key: '{key}'")
 
 
+def _is_nonstring_sequence(x: Any) -> bool:
+    return isinstance(x, Sequence) and not isinstance(x, (str, bytes, bytearray))
+
+
+# Need this so ConfigDict doesn't get rejected
+def _is_mapping(x: Any) -> bool:
+    return isinstance(x, Mapping) or isinstance(x, ConfigDict) or hasattr(x, "items")
+
+
+def _as_items(x: Any) -> Any:
+    return x.items() if hasattr(x, "items") else ()
+
+
+def _collect_sweep_params_keys(node: Any, *, path: str = "sweep") -> set[str]:
+    """
+    Recursively validate the sweep specification and collect all parameter keys it references.
+    This method supports three forms:
+        1) Leaf grid dict: {"param_name": [v1, v2, ...]}
+        2) Zip dict: {"zip": {param1: [...], param2: [...], ...}} (all lists same length)
+        3) Grid list: {"grid": [ {param1: v1, param2: v2}, {...}, ... ]} (cartesian product of children)
+        *4) Nested combinations of the above.
+    Raises:
+        ValueError if the sweep structure is invalid.
+    """
+    if node is None or node is False:
+        return set()
+
+    keys: set[str] = set()
+
+    # list is treated like a grid list (sequence of child nodes)
+    if isinstance(node, list):
+        for i, child in enumerate(node):
+            keys |= _collect_sweep_params_keys(child, path=f"{path}[{i}]")
+        return keys
+
+    # Mapping/dict-like nodes (dict, ConfigDict, etc.)
+    if _is_mapping(node):
+        # grid node
+        if "grid" in node:
+            grid = node["grid"]
+            if not isinstance(grid, list):
+                raise ValueError(f"Expected 'grid' to be a list at {path}.")
+            for i, child in enumerate(grid):
+                keys |= _collect_sweep_params_keys(child, path=f"{path}.grid[{i}]")
+            return keys
+
+        # zip node
+        if "zip" in node:
+            z = node["zip"]
+            if not _is_mapping(z):
+                raise ValueError(
+                    f"Expected {path}.zip to be a mapping of {{param: list}}."
+                )
+            lengths: set[int] = set()
+            for k, v in _as_items(z):
+                if not _is_nonstring_sequence(v):
+                    raise ValueError(
+                        f"Expected {path}.zip.{k} to be a list or tuple of values."
+                    )
+                lengths.add(len(v))
+                keys.add(str(k))
+            if len(lengths) > 1:
+                raise ValueError(
+                    f"All lists in {path}.zip must have equal lengths; got lengths={sorted(lengths)}"
+                )
+            return keys
+
+        # leaf grid dict (param -> list/tuple of values)
+        for k, v in _as_items(node):
+            if not _is_nonstring_sequence(v):
+                raise ValueError(
+                    f"Expected {path}.{k} to be a list or tuple of values."
+                )
+            keys.add(str(k))
+        return keys
+
+    # Anything else is invalid
+    raise ValueError(f"Invalid sweep structure at {path}: {node!r}")
+
+
 def check_sweep_keys(cfg: ConfigDict) -> None:
     """
-    Validates that sweep keys are defined in the params section.
-    Raises:
-        ValueError if sweep keys are not found in params.
+    Validates that sweep references only parameters present in cfg.params,
+    and that the sweep schema is well-formed (recursive grid/zip/leaf).
     """
-    sweep_keys = cfg.get("sweep", [])
-    if not isinstance(sweep_keys, list):
-        raise ValueError("Expected 'sweep' to be a list of parameter keys.")
+    if "sweep" not in cfg or cfg["sweep"] in (None, False):
+        return
+
+    referenced = _collect_sweep_params_keys(cfg["sweep"], path="sweep")
 
     params = cast(dict[str, Any], cfg.get("params", {}))
-    for key in sweep_keys:
-        if key not in params:
-            raise ValueError(f"Sweep key '{key}' not found in params.")
+    missing = [k for k in referenced if k not in params]
+    if missing:
+        # If your test expects a different message, adjust here:
+        raise ValueError(f"Sweep references undefined params: {missing}")
 
 
 def check_reserved_keys_in_params(cfg: ConfigDict) -> None:
