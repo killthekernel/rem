@@ -1,5 +1,3 @@
-# src/rem/core/config_validation.py
-
 from typing import Any, cast
 
 from ml_collections import ConfigDict
