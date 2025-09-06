@@ -11,7 +11,7 @@ from ml_collections import ConfigDict
 from rem.constants import EVENTS_FILENAME, MANIFEST_FILENAME
 from rem.core.manifest import GroupManifest, RepManifest, SweepManifest
 from rem.core.registry import RegistryManager
-from rem.core.runner import MainRunner
+from rem.core.runner import MainRunner, run_local
 
 
 def write_yaml(path: Path, data: dict[str, Any]) -> None:
@@ -40,8 +40,8 @@ def make_dummy_experiment_module(
         "   def __init__(self, config: ConfigDict) -> None:\n"
         "       super().__init__(config)\n"
         "   def run(self) -> dict[str, str]:\n"
-        "       # Some dummy computation\n"
-        "       return {'status': 'ok'}\n"
+        "       epochs = int(self.config.get('params', {}).get('epochs', 0))\n"
+        "       return {'status': 'ok', 'epochs': epochs}\n"
     )
     module_file.write_text(module_src)
     if str(module_dir) not in sys.path:
@@ -282,3 +282,48 @@ def test_resume_from_dryrun_reuses_group(
     # There should be new UPDATE_STATUS events in the full run
     assert count_types(post_events, "UPDATE_STATUS") >= 4
     assert count_types(pre_events, "UPDATE_STATUS") == 0
+
+
+@pytest.mark.parametrize("test_flag", [True, False])  # type: ignore[misc]
+def test_run_local(
+    cfg_path: Path, tmp_path: Path, test_flag: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    Test the run_local function for running a single experiment without staging.
+    Isolate REM_ROOT to avoid interference with other tests.
+    """
+    isolated_root = tmp_path.joinpath("iso_test" if test_flag else "iso_test_real")
+    monkeypatch.setenv("REM_ROOT", str(isolated_root))
+
+    module_name = make_dummy_experiment_module(tmp_path)
+    cfg = {
+        "experiment_name": "local_test",
+        "experiment_path": module_name,
+        "experiment_class": "DummyExp",
+        "params": {"epochs": 10, "lr": 0.005},
+    }
+    write_yaml(cfg_path, cfg)
+
+    # Just confirm this directory is fresh
+    from rem.utils.paths import get_default_events_path, get_results_dir
+
+    assert not get_results_dir(test=test_flag).exists()
+    assert not get_default_events_path(test=test_flag).exists()
+
+    # Basic run
+    out = run_local(cfg_path)
+    assert (
+        isinstance(out, dict) and out.get("status") == "ok" and out.get("epochs") == 10
+    )
+
+    # Check overrides are applied
+    out2 = run_local(cfg_path, overrides={"params": {"epochs": 20}})
+    assert (
+        isinstance(out2, dict)
+        and out2.get("status") == "ok"
+        and out2.get("epochs") == 20
+    )
+
+    # Confirm no directories or events were created
+    assert not get_results_dir(test=test_flag).exists()
+    assert not get_default_events_path(test=test_flag).exists()

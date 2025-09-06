@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from glob import glob
 from pathlib import Path
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Mapping, Optional, Union, cast
 
 import yaml
 from ml_collections import ConfigDict
@@ -275,6 +275,39 @@ def run_single_rep(
             rep_manifest_path,
             {"status": "CRASHED", "timestamp_end": datetime.now().isoformat() + "Z"},
         )
+
+
+def run_local(
+    config: Union[ConfigDict, str, Path],
+    *,
+    overrides: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    """
+    Run an experiment "locally" without staging any directories, manifests or registry updates.
+    This is primarily for debugging and quick tests, not for production use.
+    """
+    # Load config if a path is given
+    if isinstance(config, (str, Path)):
+        cfg = load_config_from_yaml(config)
+    else:
+        cfg = config
+
+    # Apply overrides if any
+    if overrides:
+        cfg = override_config(cfg, overrides)
+        logger.info(f"Applied overrides: {overrides}")
+
+    exp_path = str(cfg.get("experiment_path", "")).strip()
+    exp_class = str(cfg.get("experiment_class", "Experiment")).strip()
+    if not exp_path or not exp_class:
+        raise ValueError(
+            "Both experiment_path and experiment_class must be specified in the config."
+        )
+
+    expcls = _import_experiment_class(exp_path, exp_class)
+    experiment = expcls(cfg)  # type: ignore[call-arg]
+    results = experiment.run()
+    return results if isinstance(results, dict) else {"results": results}
 
 
 class MainRunner:
