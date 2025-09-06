@@ -26,7 +26,9 @@ VALID_EVENT_TYPES: set[EventType] = {
 
 
 class RegistryManager:
-    def __init__(self, events_path: Path = get_default_events_path()) -> None:
+    def __init__(self, events_path: Optional[Path] = None) -> None:
+        if events_path is None:
+            events_path = get_default_events_path()
         self.events_path = events_path
         self.events_path.parent.mkdir(parents=True, exist_ok=True)
         self._events: Optional[list[dict[str, Any]]] = None

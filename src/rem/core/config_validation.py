@@ -8,7 +8,7 @@ from rem.utils.logger import get_logger
 logger = get_logger(__name__)
 
 REQUIRED_TOP_LEVEL_KEYS = ["experiment_name", "params"]
-OPTIONAL_TOP_LEVEL_KEYS = ["sweep", "test"]
+OPTIONAL_TOP_LEVEL_KEYS = ["sweep", "test", "slurm"]
 RESERVED_TOP_LEVEL_KEYS = REQUIRED_TOP_LEVEL_KEYS + OPTIONAL_TOP_LEVEL_KEYS
 
 
