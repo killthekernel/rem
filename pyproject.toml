@@ -12,6 +12,8 @@ dependencies = [
     "ulid-py>=1.1,<2.0",
     "filelock>=3.13",
     "ml_collections>=0.1.0",
+    "typer>=0.9.0",
+    "pyyaml>=6.0",
 ]
 
 [project.urls]
