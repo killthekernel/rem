@@ -26,6 +26,12 @@ dev = [
     "pre-commit"
 ]
 
+[project.scripts]
+rem = "rem.cli.main:run_cli"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

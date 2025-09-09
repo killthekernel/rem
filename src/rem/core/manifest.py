@@ -152,7 +152,7 @@ def summarize_sweep_status(rep_entries: list[dict[str, Any]]) -> str:
     elif all(s == "PENDING" for s in statuses):
         return "PENDING"
     elif any(s not in TERMINAL_STATUSES for s in statuses):
-        return "IN_PROGRESS"
+        return "RUNNING"
     else:
         return "PARTIAL_COMPLETION"
 
@@ -164,7 +164,7 @@ def summarize_group_status(sweep_manifests: list[SweepManifest]) -> str:
     elif all(s == "PENDING" for s in statuses):
         return "PENDING"
     elif any(s not in TERMINAL_STATUSES for s in statuses):
-        return "IN_PROGRESS"
+        return "RUNNING"
     else:
         return "PARTIAL_COMPLETION"
 

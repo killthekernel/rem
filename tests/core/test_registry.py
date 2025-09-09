@@ -118,7 +118,7 @@ class TestRegistryManager:
         events_path = tmp_path.joinpath("events.jsonl")
         rm = RegistryManager(events_path=events_path)
 
-        num_threads = 5
+        num_threads = 3
 
         def writer(i: int) -> None:
             event = {

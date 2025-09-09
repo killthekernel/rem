@@ -114,7 +114,7 @@ def stage_group(
     group_dir = get_group_dir(group_id, group_dt, test=test)
     group_dir.mkdir(parents=True, exist_ok=True)
 
-    group_manifest_path = get_group_manifest_path(str(group_dir), group_dt, test=test)
+    group_manifest_path = get_group_manifest_path(group_id, group_dt, test=test)
 
     exp_path = cfg.get("experiment_path", "")
     exp_class = cfg.get("experiment_class", "Experiment")
@@ -346,6 +346,7 @@ class MainRunner:
         - Stages sweeps and reps on disk.
         - If not dryrun, executes all reps sequentially. (Placeholder, later for SLURM.)
         """
+        # Load and validate config
         cfg = load_config_from_yaml(config_path)
         validate_config(cfg)
 
@@ -354,6 +355,7 @@ class MainRunner:
 
         if group_id is not None:
             logger.info(f"Resuming existing group {group_id}")
+            # Check that group has been staged
             ulid_str = parse_group_id(group_id)
             group_dt = timestamp_from_ulid(ulid_str)
             group_dir = get_group_dir(group_id, group_dt, test=self.test)
@@ -362,13 +364,16 @@ class MainRunner:
                     f"Group directory {group_dir} does not exist for group_id {group_id}"
                 )
 
+            # Boolean flag for whether we've posted a group-level RUNNING event yet
             posted_group_running = False
 
+            # Get all sweep subdirs in this group
             for sweep_dir in sorted(
                 p
                 for p in group_dir.iterdir()
                 if p.is_dir() and p.name.startswith(SWEEP_PREFIX)
             ):
+                # Get sweep manifest and parameter overrides
                 sweep_id = sweep_dir.name
                 sm_path = get_sweep_manifest_path(
                     group_id, group_dt, sweep_id, test=self.test
@@ -418,6 +423,11 @@ class MainRunner:
                                 "timestamp": datetime.now().isoformat() + "Z",
                                 "status": "RUNNING",
                             }
+                        )
+                        group_dt = _resolve_group_date_from_group_id(group_id)
+                        update_group_manifest(
+                            get_group_manifest_path(group_id, group_dt, test=self.test),
+                            {"status": "RUNNING"},
                         )
                         posted_group_running = True
 
@@ -491,6 +501,14 @@ class MainRunner:
                 }
             )
 
+            gm_path = get_group_manifest_path(group_id, group_dt, test=self.test)
+            gm = GroupManifest.load(gm_path)
+            if not is_terminal(gm.status):
+                update_group_manifest(gm_path, {"status": group_status})
+                gm = GroupManifest.load(gm_path)
+                logger.info(
+                    f"Finalized group manifest to status {gm.status} at {gm_path}"
+                )
             return group_id
 
         #########################################################
@@ -569,6 +587,11 @@ class MainRunner:
                             "status": "RUNNING",
                         }
                     )
+                    group_dt = _resolve_group_date_from_group_id(group_id)
+                    update_group_manifest(
+                        get_group_manifest_path(group_id, group_dt, test=self.test),
+                        {"status": "RUNNING"},
+                    )
                     posted_group_running = True
 
                 run_single_rep(
@@ -636,5 +659,12 @@ class MainRunner:
                 "status": group_status,
             }
         )
+
+        gm_path = get_group_manifest_path(group_id, group_dt, test=self.test)
+        gm = GroupManifest.load(gm_path)
+        if not is_terminal(gm.status):
+            update_group_manifest(gm_path, {"status": group_status})
+            gm = GroupManifest.load(gm_path)
+            logger.info(f"Finalized group manifest to status {gm.status} at {gm_path}")
 
         return group_id
