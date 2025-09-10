@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
+import os
+import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from glob import glob
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Mapping, Optional, Union, cast
 
 import yaml
@@ -77,12 +81,115 @@ def _resolve_group_date_from_group_id(group_id: str) -> datetime:
     return timestamp_from_ulid(ulid_str)
 
 
-def _import_experiment_class(module_path: str, class_name: str) -> type[ExperimentBase]:
-    mod = importlib.import_module(module_path)
-    cls = getattr(mod, class_name)
-    if not issubclass(cls, ExperimentBase):
-        raise TypeError(f"{class_name} in {module_path} must subclass ExperimentBase")
-    return cast(type[ExperimentBase], cls)
+def _looks_like_file_path(spec: str) -> bool:
+    """
+    Determine if a string looks like a filepath, rather than a module spec.
+        - Ends with .py
+        - Starts with ./ or ../ or /
+    """
+    if spec.endswith(".py"):
+        return True
+    if spec.startswith(".") or spec.startswith(os.sep):
+        return True
+    if len(spec) >= 2 and spec[1] == ":":  # Windows drive letter
+        return True
+    if os.sep in spec or (os.altsep and os.altsep in spec):
+        return True
+    return False
+
+
+def _resolve_file_path(spec: str, base_dir: Optional[Path] = None) -> Path:
+    """
+    Resolve a file path, making it absolute. If base_dir is given and spec is relative,
+    it is resolved relative to base_dir. Otherwise, it is resolved relative to cwd.
+    """
+    p = Path(spec)
+    if not p.is_absolute():
+        p = (base_dir or Path.cwd()).joinpath(p).resolve()
+    return p
+
+
+def _import_module_from_file(
+    path: Path, module_name: str = "experiment_module"
+) -> ModuleType:
+    """
+    Import a module from a given file path.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"Experiment file {path} does not exist.")
+    if path.is_dir():
+        raise IsADirectoryError(
+            f"Experiment path {path} is a directory, expected a file."
+        )
+    if path.suffix != ".py":
+        raise ValueError(f"Experiment file {path} does not have a .py extension.")
+
+    logger.debug(f"Importing module {module_name} from file {path}")
+    spec = importlib.util.spec_from_file_location(module_name, str(path))
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load spec for module {module_name} from {path}")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _import_module_from_spec(spec: str) -> ModuleType:
+    """
+    Import a module given its dot-separated spec, e.g. mypackage.mymodule.
+    """
+    try:
+        module = importlib.import_module(spec)
+        return module
+    except ImportError as e:
+        raise ImportError(f"Could not import module {spec}: {e}") from e
+
+
+def _load_experiment_module(
+    experiment_path: str, *, base_dir: Optional[Path] = None
+) -> ModuleType:
+    """
+    Decide how to import the experiment module based on the experiment_path.
+    If it looks like a file path, import from file. Otherwise, import as a module spec.
+    base_dir is used to resolve relative file paths.
+    """
+    if _looks_like_file_path(experiment_path):
+        file_path = _resolve_file_path(experiment_path, base_dir=base_dir)
+        return _import_module_from_file(file_path)
+    else:
+        return _import_module_from_spec(experiment_path)
+
+
+def _resolve_experiment_class(
+    module: ModuleType, class_name: str
+) -> type[ExperimentBase]:
+    """
+    Resolve and typecheck the experiment class from the module.
+    """
+    try:
+        cls = getattr(module, class_name)
+    except AttributeError as e:
+        raise AttributeError(
+            f"Module {module.__name__} does not have class {class_name}"
+        ) from e
+
+    if not isinstance(cls, type) or not issubclass(cls, ExperimentBase):
+        raise TypeError(
+            f"Class {class_name} in module {module.__name__} is not a subclass of ExperimentBase"
+        )
+
+    return cls
+
+
+def _import_experiment_class(
+    experiment_path: str, experiment_class: str, *, base_dir: Optional[Path] = None
+) -> type[ExperimentBase]:
+    """
+    Import the experiment module and resolve the experiment class.
+    """
+    module = _load_experiment_module(experiment_path, base_dir=base_dir)
+    return _resolve_experiment_class(module, experiment_class)
 
 
 def prepare_config_for_run(
@@ -256,7 +363,9 @@ def run_single_rep(
 
     # Instantiate experiment
     try:
-        expcls = _import_experiment_class(experiment_path, experiment_class)
+        expcls = _import_experiment_class(
+            experiment_path, experiment_class, base_dir=None
+        )
         experiment = expcls(cfg)
         results = experiment.run()
         artifacts = results if isinstance(results, dict) else {"results": results}
@@ -304,7 +413,7 @@ def run_local(
             "Both experiment_path and experiment_class must be specified in the config."
         )
 
-    expcls = _import_experiment_class(exp_path, exp_class)
+    expcls = _import_experiment_class(exp_path, exp_class, base_dir=None)
     experiment = expcls(cfg)  # type: ignore[call-arg]
     results = experiment.run()
     return results if isinstance(results, dict) else {"results": results}

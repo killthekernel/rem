@@ -1,0 +1,6 @@
+experiment_name: demo_base
+experiment_path: ./tests/data/experiments/dummy_exp.py
+experiment_class: DummyExperiment
+params:
+    epochs: 5
+    lr: 0.01

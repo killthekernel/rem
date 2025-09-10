@@ -1,0 +1,16 @@
+experiment_name: demo_grid
+experiment_path: tests.data.experiments.dummy_exp
+experiment_class: DummyExp
+params:
+    epochs: 5
+    lr: 0.01
+    batch_size: 32
+sweep:
+    grid:
+        - lr:
+            - 0.1
+            - 0.01
+            - 0.001
+        - batch_size:
+            - 16
+            - 32

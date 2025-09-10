@@ -1,0 +1,8 @@
+experiment_name: demo_zip
+experiment_path: tests.data.experiments.dummy_exp
+experiment_class: DummyExp
+params:
+    epochs: 5
+    lr: 0.01
+    batch_size: 32
+reserved_key: should_not_exist
