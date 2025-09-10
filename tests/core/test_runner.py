@@ -70,6 +70,8 @@ def test_dryrun_stages(rem_root: Path, cfg_path: Path, test_flag: bool) -> None:
     """
     cfg = {
         "experiment_name": "demo",
+        "experiment_path": "dummy_experiment",
+        "experiment_class": "DummyExp",
         "params": {"epochs": 5, "lr": 0.001},
         "sweep": {"lr": [0.001, 0.01, 0.1]},
     }

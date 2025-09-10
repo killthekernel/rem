@@ -7,7 +7,12 @@ from rem.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-REQUIRED_TOP_LEVEL_KEYS = ["experiment_name", "params"]
+REQUIRED_TOP_LEVEL_KEYS = [
+    "experiment_name",
+    "experiment_path",
+    "experiment_class",
+    "params",
+]
 OPTIONAL_TOP_LEVEL_KEYS = ["sweep", "test", "slurm"]
 RESERVED_TOP_LEVEL_KEYS = REQUIRED_TOP_LEVEL_KEYS + OPTIONAL_TOP_LEVEL_KEYS
 
@@ -21,6 +26,13 @@ def validate_config_structure(cfg: ConfigDict) -> None:
     for key in REQUIRED_TOP_LEVEL_KEYS:
         if key not in cfg:
             raise ValueError(f"Missing required config key: '{key}'")
+
+    exp_path = cfg.get("experiment_path")
+    exp_class = cfg.get("experiment_class")
+    if not isinstance(exp_path, str) or not exp_path:
+        raise ValueError("'experiment_path' must be a non-empty string.")
+    if not isinstance(exp_class, str) or not exp_class:
+        raise ValueError("'experiment_class' must be a non-empty string.")
 
     # Warn about unknown top-level keys
     for key in cfg:

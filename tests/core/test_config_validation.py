@@ -8,7 +8,14 @@ from rem.core import config_validation as cv
 
 
 def make_base_config(**params: Any) -> ConfigDict:
-    return ConfigDict({"experiment_name": "test_exp", "params": params})
+    return ConfigDict(
+        {
+            "experiment_name": "test_exp",
+            "experiment_path": "some.module.Path",
+            "experiment_class": "MyExperiment",
+            "params": params,
+        }
+    )
 
 
 def test_missing_required_key_raises() -> None:
@@ -62,6 +69,8 @@ def test_valid_config_passes_all_checks() -> None:
     cfg = ConfigDict(
         {
             "experiment_name": "valid_exp",
+            "experiment_path": "some.module.Path",
+            "experiment_class": "MyExperiment",
             "test": True,
             "sweep": [
                 {"lr": [0.01, 0.001]},
@@ -99,6 +108,8 @@ def test_top_level_list_sweep_valid() -> None:
     cfg = ConfigDict(
         {
             "experiment_name": "ok",
+            "experiment_path": "some.module.Path",
+            "experiment_class": "MyExperiment",
             "sweep": [
                 {"lr": [0.1, 0.01]},
                 {"zip": {"bs": [16, 32], "drop": [0.1, 0.2]}},
@@ -114,6 +125,8 @@ def test_empty_or_none_or_false_sweep_is_noop(sweep_value: Any) -> None:
     cfg = ConfigDict(
         {
             "experiment_name": "noop",
+            "experiment_path": "some.module.Path",
+            "experiment_class": "MyExperiment",
             "sweep": sweep_value,
             "params": {"x": 1},
         }
@@ -125,6 +138,8 @@ def test_nested_grid_zip_valid() -> None:
     cfg = ConfigDict(
         {
             "experiment_name": "nested_ok",
+            "experiment_path": "some.module.Path",
+            "experiment_class": "MyExperiment",
             "sweep": {
                 "grid": [
                     {"zip": {"a": [1, 2], "b": [3, 4]}},

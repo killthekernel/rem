@@ -88,6 +88,8 @@ def test_cli_run_dryrun_stages(tmp_path: Path, test_flag: bool) -> None:
 
     cfg = {
         "experiment_name": "demo_cli_exp",
+        "experiment_path": _make_dummy_experiment_module(tmp_path),
+        "experiment_class": "DummyExperiment",
         "params": {"lr": 0.01, "epochs": 5},
         "sweep": {"lr": [0.1, 0.01, 0.001]},
     }
